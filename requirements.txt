@@ -1,0 +1,28 @@
+# RAG System Requirements
+# This file installs dependencies for both backend and frontend
+
+# Backend dependencies
+fastapi==0.104.1
+uvicorn==0.24.0
+langchain==0.1.0
+langchain-community==0.0.10
+chromadb==0.4.18
+ollama==0.1.7
+PyPDF2==3.0.1
+python-docx==1.1.0
+python-pptx==0.6.23
+pdfplumber==0.10.3
+sentence-transformers==2.2.2
+pydantic==2.5.0
+python-multipart==0.0.6
+aiofiles==23.2.0
+pyyaml==6.0.1
+python-dotenv==1.0.0
+psutil==5.9.6
+markdown==3.5.1
+
+# Frontend dependencies
+streamlit==1.28.1
+requests==2.31.0
+pandas==2.1.3
+plotly==5.17.0

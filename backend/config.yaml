@@ -1,0 +1,38 @@
+# RAG System Configuration
+
+# Ollama Configuration
+ollama:
+  base_url: "http://localhost:11434"
+  model: "qwen3:4b"
+  embedding_model: "bge-m3:latest"
+  temperature: 0.7
+  max_tokens: 2048
+
+# ChromaDB Configuration
+chromadb:
+  persist_directory: "./data/vector_db"
+  collection_name: "rag_documents"
+  distance_function: "cosine"
+
+# Document Processing
+document_processing:
+  chunk_size: 1000
+  chunk_overlap: 200
+  max_file_size: 50  # MB
+  allowed_extensions: [".pdf", ".docx", ".pptx", ".txt", ".md"]
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  cors_origins: ["http://localhost:8501"]
+
+# Retrieval Configuration
+retrieval:
+  top_k: 5
+  similarity_threshold: 0.7
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
