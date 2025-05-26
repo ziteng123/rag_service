@@ -37,6 +37,14 @@ st.markdown("""
         border-radius: 0.5rem;
         margin-bottom: 1rem;
     }
+    .document-item {
+        background-color: #ffffff;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 0.5rem;
+        border: 1px solid #e0e0e0;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
     .chat-message {
         padding: 1rem;
         border-radius: 0.5rem;
@@ -90,9 +98,41 @@ def upload_files(files) -> Dict[str, Any]:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-def query_documents_stream(question: str, top_k: int = 5):
+def get_uploaded_documents() -> Dict[str, Any]:
+    """Get list of uploaded documents"""
+    try:
+        response = requests.get(f"{API_BASE_URL}/upload/documents", timeout=10)
+        if response.status_code == 200:
+            return response.json()
+        return {"status": "error", "documents": []}
+    except Exception as e:
+        return {"status": "error", "documents": [], "error": str(e)}
+
+def delete_document(filename: str) -> Dict[str, Any]:
+    """Delete a specific document"""
+    try:
+        response = requests.delete(f"{API_BASE_URL}/upload/documents/{filename}", timeout=30)
+        if response.status_code == 200:
+            return response.json()
+        return {"status": "error", "message": f"Failed to delete {filename}"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def delete_all_documents() -> Dict[str, Any]:
+    """Delete all documents"""
+    try:
+        payload = {"delete_all": True}
+        response = requests.post(f"{API_BASE_URL}/upload/documents/delete", json=payload, timeout=60)
+        if response.status_code == 200:
+            return response.json()
+        return {"status": "error", "message": "Failed to delete all documents"}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+def query_documents_stream(question: str, top_k: int = 5, status_placeholder=None):
     """Query documents with streaming response"""
     try:
+        status_placeholder.info("🔍 正在检索相关文档...")
         payload = {
             "question": question,
             "top_k": top_k,
@@ -119,9 +159,28 @@ def get_models() -> Dict[str, Any]:
         st.error(f"Error getting models: {str(e)}")
         return {}
 
+def format_file_size(size_bytes: int) -> str:
+    """Format file size in human readable format"""
+    if size_bytes == 0:
+        return "0B"
+    size_names = ["B", "KB", "MB", "GB"]
+    i = 0
+    while size_bytes >= 1024 and i < len(size_names) - 1:
+        size_bytes /= 1024.0
+        i += 1
+    return f"{size_bytes:.1f}{size_names[i]}"
+
+def format_upload_time(upload_time: str) -> str:
+    """Format upload time"""
+    try:
+        from datetime import datetime
+        dt = datetime.fromisoformat(upload_time.replace('Z', '+00:00'))
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+    except:
+        return upload_time
+
 def main():
     """Main application"""
-    
     # Header
     st.markdown('<h1 class="main-header">🤖 RAG智能问答系统</h1>', unsafe_allow_html=True)
     
@@ -193,7 +252,7 @@ def main():
         st.session_state.current_tab = "💬 智能问答"
     
     # Main content tabs
-    tab1, tab2, tab3 = st.tabs(["💬 智能问答", "📁 文档上传", "📈 系统监控"])
+    tab1, tab2, tab3 = st.tabs(["💬 智能问答", "📁 文档管理", "📈 系统监控"])
     
     with tab1:
         st.header("💬 智能问答")
@@ -216,9 +275,11 @@ def main():
                             """, unsafe_allow_html=True)
     
     with tab2:
-        st.header("📁 文档上传")
+        st.header("📁 文档管理")
         
+        # Upload section
         with st.container():
+            st.subheader("📤 上传新文档")
             st.markdown('<div class="upload-section">', unsafe_allow_html=True)
             
             # File uploader
@@ -234,7 +295,7 @@ def main():
                 
                 # Display selected files
                 for file in uploaded_files:
-                    st.write(f"📄 {file.name} ({file.size} bytes)")
+                    st.write(f"📄 {file.name} ({format_file_size(file.size)})")
                 
                 # Upload button
                 if st.button("🚀 开始上传和处理", type="primary"):
@@ -255,10 +316,100 @@ def main():
                         
                         if result.get("failed_files"):
                             st.warning(f"以下文件处理失败: {', '.join(result['failed_files'])}")
+                        
+                        # Refresh the page to show new documents
+                        time.sleep(1)
+                        st.rerun()
                     else:
                         st.error(f"❌ 上传失败: {result.get('message', '未知错误')}")
             
             st.markdown('</div>', unsafe_allow_html=True)
+        
+        st.divider()
+        
+        # Document list section
+        st.subheader("📋 已上传的文档")
+        
+        # Refresh and delete all buttons
+        col1, col2, col3 = st.columns([1, 1, 2])
+        with col1:
+            if st.button("🔄 刷新列表"):
+                st.rerun()
+        
+        with col2:
+            if st.button("🗑️ 删除全部", type="secondary"):
+                if st.session_state.get("confirm_delete_all", False):
+                    with st.spinner("正在删除所有文档..."):
+                        result = delete_all_documents()
+                        if result.get("status") == "success":
+                            st.success("✅ 已删除所有文档")
+                            st.session_state["confirm_delete_all"] = False
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error(f"❌ 删除失败: {result.get('message', '未知错误')}")
+                else:
+                    st.session_state["confirm_delete_all"] = True
+                    st.warning("⚠️ 再次点击确认删除所有文档")
+        
+        # Get and display documents
+        documents_result = get_uploaded_documents()
+        
+        if documents_result.get("status") == "success":
+            documents = documents_result.get("documents", [])
+            
+            if documents:
+                st.info(f"共有 {len(documents)} 个文档")
+                
+                # Display documents
+                for i, doc in enumerate(documents):
+                    with st.container():
+                        st.markdown(f'<div class="document-item">', unsafe_allow_html=True)
+                        
+                        col1, col2 = st.columns([3, 1])
+                        
+                        with col1:
+                            # Document info
+                            st.markdown(f"**📄 {doc.get('filename', 'Unknown')}**")
+                            
+                            # Document details
+                            col_info1, col_info2, col_info3 = st.columns(3)
+                            with col_info1:
+                                st.caption(f"类型: {doc.get('file_type', 'unknown')}")
+                            with col_info2:
+                                st.caption(f"大小: {format_file_size(doc.get('file_size', 0))}")
+                            with col_info3:
+                                st.caption(f"块数: {doc.get('chunk_count', 0)}")
+                            
+                            # Upload time and metadata
+                            upload_time = format_upload_time(doc.get('upload_time', ''))
+                            st.caption(f"上传时间: {upload_time}")
+                            
+                            if doc.get('title'):
+                                st.caption(f"标题: {doc.get('title')}")
+                            if doc.get('author'):
+                                st.caption(f"作者: {doc.get('author')}")
+                        
+                        with col2:
+                            # Delete button
+                            delete_key = f"delete_{i}_{doc.get('filename', '')}"
+                            if st.button("🗑️ 删除", key=delete_key, type="secondary"):
+                                with st.spinner(f"正在删除 {doc.get('filename', '')}..."):
+                                    result = delete_document(doc.get('filename', ''))
+                                    if result.get("status") == "success":
+                                        st.success(f"✅ 已删除文档: {doc.get('filename', '')}")
+                                        time.sleep(1)
+                                        st.rerun()
+                                    else:
+                                        st.error(f"❌ 删除失败: {result.get('message', '未知错误')}")
+                        
+                        st.markdown('</div>', unsafe_allow_html=True)
+                        st.markdown("")  # Add some spacing
+            else:
+                st.info("📭 暂无已上传的文档")
+                st.markdown("请使用上方的文件上传功能添加文档。")
+        else:
+            st.error(f"❌ 获取文档列表失败: {documents_result.get('error', '未知错误')}")
     
     with tab3:
         st.header("📈 系统监控")
@@ -366,7 +517,7 @@ def main():
             
             # Process streaming response
             try:
-                for data in query_documents_stream(prompt, top_k):
+                for data in query_documents_stream(prompt, top_k, status_placeholder):
                     if data.get("type") == "status":
                         status_placeholder.info(f"🔍 {data.get('message', '')}")
                     
@@ -395,7 +546,6 @@ def main():
                         full_response = error_msg
                         error_occurred = True
                         status_placeholder.empty()
-                        break
                 
                 # Add assistant message to chat history
                 if not error_occurred:

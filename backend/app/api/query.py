@@ -52,7 +52,6 @@ async def query_documents_stream(request: QueryRequest):
             try:
                 # First, send the retrieval status
                 yield f"data: {json.dumps({'type': 'status', 'message': '正在检索相关文档...'})}\n\n"
-                
                 # Process RAG query
                 result = rag_chain.query(
                     question=request.question,

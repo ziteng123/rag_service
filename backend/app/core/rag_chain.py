@@ -189,7 +189,12 @@ class RAGChain:
         """Check RAG chain health"""
         try:
             # Test LLM connection
-            test_response = self.llm.invoke("Hello")
+            response = requests.get(f"http://localhost:11434/api/tags", timeout=5)
+            if response.status_code == 200:
+                test_response = response.json()
+            else:
+                test_response = None
+            # test_response = self.llm.invoke("Hello")
             
             # Test vector store
             vector_health = vector_store.health_check()

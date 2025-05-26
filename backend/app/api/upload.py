@@ -6,7 +6,7 @@ from typing import List
 from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
 
-from backend.app.models.schemas import UploadResponse
+from backend.app.models.schemas import UploadResponse, DeleteRequest, DeleteResponse
 from backend.app.core.document_parser import document_parser
 from backend.app.core.vectorizer import vector_store
 from backend.app.utils.file_utils import save_multiple_files, cleanup_temp_files, validate_file_type, validate_file_size
@@ -135,3 +135,128 @@ async def get_upload_status():
             status_code=500,
             content={"status": "error", "error": str(e)}
         )
+
+@router.get("/upload/documents")
+async def get_uploaded_documents():
+    """Get list of uploaded documents"""
+    try:
+        # Get all documents from vector store
+        results = vector_store.collection.get(
+            include=['metadatas']
+        )
+        
+        # Group by filename to get unique documents
+        documents = {}
+        for metadata in results['metadatas']:
+            filename = metadata.get('filename', 'unknown')
+            if filename not in documents:
+                documents[filename] = {
+                    'filename': filename,
+                    'file_type': metadata.get('file_type', 'unknown'),
+                    'file_size': metadata.get('file_size', 0),
+                    'upload_time': metadata.get('upload_time', ''),
+                    'chunk_count': 0,
+                    'author': metadata.get('author', ''),
+                    'title': metadata.get('title', '')
+                }
+            documents[filename]['chunk_count'] += 1
+        
+        # Convert to list and sort by upload time
+        document_list = list(documents.values())
+        document_list.sort(key=lambda x: x['upload_time'], reverse=True)
+        
+        return {
+            "status": "success",
+            "documents": document_list,
+            "total_count": len(document_list)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting uploaded documents: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"status": "error", "error": str(e)}
+        )
+
+@router.delete("/upload/documents/{filename}")
+async def delete_document(filename: str):
+    """Delete a specific document by filename"""
+    try:
+        # Delete document from vector store
+        result = vector_store.delete_document(filename)
+        
+        if result['success']:
+            return DeleteResponse(
+                status="success",
+                message=f"Successfully deleted document: {filename}",
+                deleted_count=result['deleted_count']
+            )
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=result.get('error', f'Document not found: {filename}')
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting document {filename}: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
+@router.post("/upload/documents/delete", response_model=DeleteResponse)
+async def delete_documents(request: DeleteRequest):
+    """Delete multiple documents or all documents"""
+    try:
+        if request.delete_all:
+            # Delete all documents
+            try:
+                vector_store.collection.delete()
+                # Recreate collection
+                vector_store.collection = vector_store.chroma_client.create_collection(
+                    name=vector_store.collection.name,
+                    metadata={"hnsw:space": "cosine"}
+                )
+                
+                return DeleteResponse(
+                    status="success",
+                    message="Successfully deleted all documents",
+                    deleted_count=-1  # Indicate all documents deleted
+                )
+            except Exception as e:
+                logger.error(f"Error deleting all documents: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to delete all documents: {str(e)}")
+        
+        elif request.document_ids:
+            # Delete specific documents
+            total_deleted = 0
+            failed_deletions = []
+            
+            for filename in request.document_ids:
+                result = vector_store.delete_document(filename)
+                if result['success']:
+                    total_deleted += result['deleted_count']
+                else:
+                    failed_deletions.append(filename)
+            
+            if failed_deletions:
+                message = f"Deleted {total_deleted} chunks from {len(request.document_ids) - len(failed_deletions)} documents. Failed: {', '.join(failed_deletions)}"
+            else:
+                message = f"Successfully deleted {total_deleted} chunks from {len(request.document_ids)} documents"
+            
+            return DeleteResponse(
+                status="success" if not failed_deletions else "partial",
+                message=message,
+                deleted_count=total_deleted
+            )
+        
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail="Either document_ids must be provided or delete_all must be true"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in bulk delete operation: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
