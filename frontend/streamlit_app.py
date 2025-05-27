@@ -129,10 +129,10 @@ def delete_all_documents() -> Dict[str, Any]:
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
-def query_documents_stream(question: str, top_k: int = 5, status_placeholder=None):
+def query_documents_stream(question: str, top_k: int = 5):
     """Query documents with streaming response"""
     try:
-        status_placeholder.info("🔍 正在检索相关文档...")
+        
         payload = {
             "question": question,
             "top_k": top_k,
@@ -241,7 +241,7 @@ def main():
         # Clear chat history
         if st.button("🗑️ 清空对话历史"):
             st.session_state.messages = []
-            st.rerun()
+            # st.rerun()
     
     # Initialize chat history
     if "messages" not in st.session_state:
@@ -280,7 +280,7 @@ def main():
         # Upload section
         with st.container():
             st.subheader("📤 上传新文档")
-            st.markdown('<div class="upload-section">', unsafe_allow_html=True)
+            # st.markdown('<div class="upload-section">', unsafe_allow_html=True)
             
             # File uploader
             uploaded_files = st.file_uploader(
@@ -316,14 +316,14 @@ def main():
                         
                         if result.get("failed_files"):
                             st.warning(f"以下文件处理失败: {', '.join(result['failed_files'])}")
-                        
+                        uploaded_files = []  # Clear uploaded files after processing
                         # Refresh the page to show new documents
-                        time.sleep(1)
+                        time.sleep(0.5)
                         st.rerun()
                     else:
                         st.error(f"❌ 上传失败: {result.get('message', '未知错误')}")
             
-            st.markdown('</div>', unsafe_allow_html=True)
+            # st.markdown('</div>', unsafe_allow_html=True)
         
         st.divider()
         
@@ -364,7 +364,7 @@ def main():
                 # Display documents
                 for i, doc in enumerate(documents):
                     with st.container():
-                        st.markdown(f'<div class="document-item">', unsafe_allow_html=True)
+                        # st.markdown(f'<div class="document-item">', unsafe_allow_html=True)
                         
                         col1, col2 = st.columns([3, 1])
                         
@@ -403,7 +403,7 @@ def main():
                                     else:
                                         st.error(f"❌ 删除失败: {result.get('message', '未知错误')}")
                         
-                        st.markdown('</div>', unsafe_allow_html=True)
+                        # st.markdown('</div>', unsafe_allow_html=True)
                         st.markdown("")  # Add some spacing
             else:
                 st.info("📭 暂无已上传的文档")
@@ -508,7 +508,7 @@ def main():
         with st.chat_message("assistant"):
             message_placeholder = st.empty()
             status_placeholder = st.empty()
-            
+            status_placeholder.info("🔍 正在检索相关文档...")
             # Initialize response variables
             response_parts = []
             full_response = ""
@@ -517,7 +517,7 @@ def main():
             
             # Process streaming response
             try:
-                for data in query_documents_stream(prompt, top_k, status_placeholder):
+                for data in query_documents_stream(prompt, top_k):
                     if data.get("type") == "status":
                         status_placeholder.info(f"🔍 {data.get('message', '')}")
                     
@@ -582,7 +582,7 @@ def main():
                 status_placeholder.empty()
         
         # Rerun to update the chat display
-        st.rerun()
+        # st.rerun()
 
 if __name__ == "__main__":
     main()

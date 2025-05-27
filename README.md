@@ -263,6 +263,11 @@ curl -X POST "http://localhost:8000/api/v1/query/prompt" \
 3. 定期清理不需要的文档以节省存储空间
 4. 考虑使用GPU加速Ollama推理
 
+### Roadmap
+- 支持历史对话记录
+- 支持多轮对话
+- 支持记忆式检索
+
 ## 许可证
 
 本项目采用 MIT 许可证。详见 [LICENSE](LICENSE) 文件。
