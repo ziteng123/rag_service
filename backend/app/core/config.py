@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     
     # API Configuration
     api_host: str = os.getenv("API_HOST", "0.0.0.0")
-    api_port: int = int(os.getenv("API_PORT", "8000"))
+    api_port: int = int(os.getenv("API_PORT", "8005"))
     
     # Ollama Configuration
     ollama_base_url: str = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
@@ -47,6 +47,18 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = os.getenv("LOG_LEVEL", "INFO")
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+    # Milvus Configuration
+    milvus_uri: str = os.getenv("MILVUS_URI", "http://localhost:19530")
+    milvus_db_name: str = os.getenv("MILVUS_DB_NAME", "rag_service")
+    milvus_token: str = os.getenv("MILVUS_TOKEN", "admin:admin123456")
+    milvus_metric_type: str = os.getenv("MILVUS_METRIC_TYPE", "L2")
+    milvus_index_type: str = os.getenv("MILVUS_INDEX_TYPE", "FLAT")
+
+    # Vector DB
+    vector_db: str = os.getenv("VECTOR_DB", "milvus")
+    
+                                       
     
     class Config:
         env_file = ".env"

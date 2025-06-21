@@ -110,10 +110,10 @@ def start_backend():
         # Wait for backend to start
         for i in range(30):
             try:
-                response = requests.get("http://localhost:8000/api/v1/status/health", timeout=2)
+                response = requests.get("http://localhost:8005/api/v1/status/health", timeout=2)
                 if response.status_code == 200:
                     print("✅ Backend service started successfully")
-                    print("   API Documentation: http://localhost:8000/docs")
+                    print("   API Documentation: http://localhost:8005/docs")
                     return process
             except:
                 pass
@@ -195,8 +195,8 @@ def main():
     print("=" * 50)
     print("📊 服务地址:")
     print("   前端界面: http://localhost:8501")
-    print("   后端API: http://localhost:8000")
-    print("   API文档: http://localhost:8000/docs")
+    print("   后端API: http://localhost:8005")
+    print("   API文档: http://localhost:8005/docs")
     print("\n💡 使用说明:")
     print("   1. 打开前端界面上传文档")
     print("   2. 在智能问答页面提问")

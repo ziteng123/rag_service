@@ -11,6 +11,8 @@ from backend.app.core.document_parser import document_parser
 from backend.app.core.vectorizer import vector_store
 from backend.app.utils.file_utils import save_multiple_files, cleanup_temp_files, validate_file_type, validate_file_size
 from backend.app.utils.logger import logger
+from backend.app.core.config import settings
+from backend.app.core.embeddings import embeddings
 
 router = APIRouter()
 
@@ -43,7 +45,7 @@ async def upload_files(
                 )
         
         # Save files to disk
-        save_results = await save_multiple_files(files)
+        save_results = await save_multiple_files(files, settings.upload_dir)
         
         if not save_results['saved_files']:
             raise HTTPException(
@@ -70,12 +72,15 @@ async def upload_files(
                     failed_files.append(filename)
                     logger.error(f"Failed to parse {filename}: {parse_result.get('error', 'Unknown error')}")
                     continue
-                
-                # Add to vector store
-                vector_result = vector_store.add_document(
-                    content=parse_result['content'],
-                    metadata=parse_result['metadata']
-                )
+                if settings.vector_db == "milvus":
+                    # Add to Milvus
+                    vector_result = embeddings.embed_to_milvus(parse_result)
+                else:
+                    # Add to vector store
+                    vector_result = vector_store.add_document(
+                        content=parse_result['content'],
+                        metadata=parse_result['metadata']
+                    )
                 
                 if vector_result['success']:
                     processed_files.append(filename)

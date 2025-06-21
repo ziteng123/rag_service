@@ -36,6 +36,7 @@ class UploadResponse(BaseModel):
 class QueryRequest(BaseModel):
     """Query request model"""
     question: str = Field(..., min_length=1, description="User question")
+    collection_name: Optional[str] = Field(None, description="Collection name")
     top_k: Optional[int] = Field(5, ge=1, le=20, description="Number of top results to retrieve")
     filter_metadata: Optional[Dict[str, Any]] = Field(None, description="Metadata filters")
     model: Optional[str] = Field('qwen3:4b', description="LLM model to use for query processing")

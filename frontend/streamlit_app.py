@@ -11,7 +11,7 @@ import pandas as pd
 import plotly.express as px
 
 # Configuration
-API_BASE_URL = "http://localhost:8000/api/v1"
+API_BASE_URL = "http://localhost:8005/api/v1"
 
 # Page configuration
 st.set_page_config(

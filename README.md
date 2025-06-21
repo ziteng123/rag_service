@@ -73,7 +73,7 @@ vim .env
 cd backend
 python -m backend.app.main
 ```
-后端服务将在 http://localhost:8000 启动
+后端服务将在 http://localhost:8005 启动
 
 #### 启动前端界面
 ```bash
@@ -105,8 +105,8 @@ streamlit run streamlit_app.py
 ## API文档
 
 启动后端服务后，可以访问以下地址查看API文档：
-- Swagger UI: http://localhost:8000/docs
-- ReDoc: http://localhost:8000/redoc
+- Swagger UI: http://localhost:8005/docs
+- ReDoc: http://localhost:8005/redoc
 
 ### 主要API端点
 
@@ -116,7 +116,7 @@ POST /api/v1/upload
 Content-Type: multipart/form-data
 
 # 上传多个文件
-curl -X POST "http://localhost:8000/api/v1/upload" \
+curl -X POST "http://localhost:8005/api/v1/upload" \
   -F "files=@document1.pdf" \
   -F "files=@document2.docx"
 ```
@@ -151,7 +151,7 @@ CHROMA_PERSIST_DIRECTORY=./data/vector_db
 
 # API配置
 API_HOST=0.0.0.0
-API_PORT=8000
+API_PORT=8005
 
 # 文件上传配置
 MAX_FILE_SIZE_MB=50
@@ -240,7 +240,7 @@ ollama logs
 ### 自定义提示词模板
 ```bash
 # 通过API更新提示词
-curl -X POST "http://localhost:8000/api/v1/query/prompt" \
+curl -X POST "http://localhost:8005/api/v1/query/prompt" \
   -H "Content-Type: application/json" \
   -d '{"template": "您的自定义提示词模板"}'
 ```

@@ -11,6 +11,7 @@ from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 from backend.app.core.config import settings
 from backend.app.core.vectorizer import vector_store
+from backend.app.vector.dbs.milvus import MilvusClient
 from backend.app.utils.logger import logger
 import requests
 
@@ -22,11 +23,13 @@ class RAGChain:
         self.llm = None
         self.prompt_template = None
         self.chain = None
+        self.milvus_client = None
         self._initialize()
     
     def _initialize(self):
         """Initialize LLM and prompt template"""
         try:
+            self.milvus_client = MilvusClient()
             # Initialize Ollama LLM
             self.llm = ChatOllama(
                 base_url=settings.ollama_base_url,
@@ -75,6 +78,12 @@ class RAGChain:
             if top_k is None:
                 top_k = settings.retrieval_top_k
             
+            if settings.vector_db == 'milvus':
+                retrieved_docs = self.milvus_client.search(
+                    query=question,
+                    top_k=top_k,
+                    filter_metadata=filter_metadata
+                )
             retrieved_docs = vector_store.search(
                 query=question,
                 top_k=top_k,
