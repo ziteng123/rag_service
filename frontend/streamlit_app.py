@@ -7,8 +7,6 @@ import requests
 import json
 import time
 from typing import  Dict, Any
-import pandas as pd
-import plotly.express as px
 
 # Configuration
 API_BASE_URL = "http://localhost:8005/api/v1"
@@ -225,11 +223,9 @@ def main():
         st.header("📄 文档选择")
         documents = get_uploaded_documents().get("documents", [])
         
-        filenames = [doc['filename'] for doc in documents]
         collections = [doc['collection_name'] for doc in documents]
         if "selected_document" not in st.session_state:
             st.session_state.selected_document = documents[0]
-        print('collections', collections)
         if documents:
             st.session_state.selected_document = st.selectbox(
                 "选择文档",
@@ -289,6 +285,9 @@ def main():
         # Display chat messages
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
+                if message["role"] == "assistant" and message["isThinking"]:
+                    with st.expander("💡 Thought a few seconds..."):
+                        st.markdown(message["thinking"])
                 st.markdown(message["content"])
                 
                 # Display sources if available
@@ -535,15 +534,21 @@ def main():
         
         # Create placeholder for assistant response
         with st.chat_message("assistant"):
+            with st.expander("💡 Thinking..."):
+                think_response = ""
+                think_response_parts = []
+                think_placeholder = st.empty()
+
             message_placeholder = st.empty()
             status_placeholder = st.empty()
             status_placeholder.info("🔍 正在检索相关文档...")
+            
             # Initialize response variables
             response_parts = []
             full_response = ""
             sources = []
             error_occurred = False
-            
+            isThinking = False
             # Process streaming response
             try:
                 for data in query_documents_stream(prompt, top_k):
@@ -556,11 +561,19 @@ def main():
                     
                     elif data.get("type") == "answer":
                         new_text = data.get("answer", "")
-                        for token in new_text:
-                            response_parts.append(token)
-                            full_response = ''.join(response_parts)
-                            message_placeholder.markdown(full_response)
-                            time.sleep(0.01)  # 控制输出速度
+                        if data.get("thinking"):
+                            isThinking = True
+                            for token in new_text:
+                                think_response_parts.append(token)
+                                think_response = ''.join(think_response_parts)
+                                think_placeholder.markdown(think_response)
+                                time.sleep(0.01)  
+                        else:
+                            for token in new_text:
+                                response_parts.append(token)
+                                full_response = ''.join(response_parts)
+                                message_placeholder.markdown(full_response)
+                                time.sleep(0.01)  # 控制输出速度
                     
                     elif data.get("type") == "complete":
                         processing_time = data.get("processing_time", 0)
@@ -580,6 +593,8 @@ def main():
                 if not error_occurred:
                     st.session_state.messages.append({
                         "role": "assistant", 
+                        "isThinking": isThinking,
+                        "thinking": think_response,
                         "content": full_response,
                         "sources": sources
                     })
@@ -611,7 +626,7 @@ def main():
                 status_placeholder.empty()
         
         # Rerun to update the chat display
-        # st.rerun()
+        st.rerun()
 
 if __name__ == "__main__":
     main()

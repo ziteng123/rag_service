@@ -34,7 +34,6 @@ async def get_system_status():
         
         # Get collection statistics
         stats = milvus_client.get_collection_stats()
-        logger.info(f'collection info: {stats.get("collections_info", [])}')
         # Get disk usage
         disk_usage = get_disk_usage(settings.chroma_persist_directory)
         

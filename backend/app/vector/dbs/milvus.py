@@ -443,7 +443,6 @@ class MilvusClient(VectorDBBase):
                 filetype = metadata.get('file_type', 'unknown')
                 filetypes[filetype] = filetypes.get(filetype, 0) + 1
             
-            logger.info(f'Collection info: {collections_info}')
             return {
                     'total_docs': len(collections),
                     'file_types': filetypes,

@@ -153,17 +153,25 @@ class RAGChain:
             
             # Step 3: Generate answer using LLM
             yield {'type': 'sources', 'data': sources}
-            answer_parts = []
             formatted_prompt = self.prompt_template.format(
                 context=context,
                 question=question
             )
+            thinking = False
             for chunk in self.llm.stream(formatted_prompt):
                 text = chunk.content
                 if text:
-                    answer_parts.append(text)
-                    yield {"type": "chunk", "data": text}
-            # full_answer = "".join(answer_parts).strip()
+                    if text == '<think>':
+                        thinking = True
+                        text = text.replace('<think>', '')
+                        logger.info(f"RAG query thinking: {text}")
+                    elif text == '</think>':
+                        thinking = False
+                        text = text.replace('</think>', '')
+                    if thinking:
+                        yield {"type": "chunk", "thinking": True, "data": text}
+                    else:
+                        yield {"type": "chunk", "thinking": False, "data": text}
             
             processing_time = time.time() - start_time
             

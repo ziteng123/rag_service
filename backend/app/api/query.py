@@ -36,7 +36,7 @@ async def query_documents_stream(request: QueryRequest):
                     if item.get('type') == 'sources':
                         yield f"data: {json.dumps({'type': 'sources', 'sources': item['data']})}\n\n"
                     if item.get('type') == 'chunk':
-                        yield f"data: {json.dumps({'type': 'answer', 'answer': item['data']})}\n\n"
+                        yield f"data: {json.dumps({'type': 'answer', 'thinking': item['thinking'], 'answer': item['data']})}\n\n"
                     if item.get('type') == 'complete':
                         yield f"data: {json.dumps({'type': 'complete', 'processing_time': item['data']['processing_time'], 'retrieved_chunks': item['data']['retrieved_chunks']})}\n\n"
             except Exception as e:
