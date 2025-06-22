@@ -37,6 +37,7 @@ class Embeddings:
         except Exception as e:
             logger.error(f"Error initializing embeddings: {e}")
             raise e
+    
 
     def embed_to_milvus(self, item: dict) -> Dict[str, Any]:
         try:

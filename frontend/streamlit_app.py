@@ -132,10 +132,15 @@ def delete_all_documents() -> Dict[str, Any]:
 def query_documents_stream(question: str, top_k: int = 5):
     """Query documents with streaming response"""
     try:
-        
+        selected_document = st.session_state.get("selected_document", None)
+        if selected_document:
+            selected_collection = selected_document.get("collection_name")
+        else:
+            selected_collection = ""
         payload = {
             "question": question,
             "top_k": top_k,
+            "collection_name": selected_collection,
             "model": st.session_state.get("selected_model", "qwen3:4b")
         }
         response = requests.post(f"{API_BASE_URL}/query/stream", json=payload, timeout=60, stream=True)
@@ -199,7 +204,6 @@ def main():
         if status:
             st.success(f"状态: {status.get('status', 'unknown')}")
             st.info(f"文档数量: {status.get('total_documents', 0)}")
-            st.info(f"文档块数量: {status.get('total_chunks', 0)}")
             st.info(f"运行时间: {status.get('uptime', 'unknown')}")
             
             # Ollama status
@@ -208,14 +212,38 @@ def main():
             else:
                 st.error("❌ Ollama 不可用")
             
-            # ChromaDB status
-            if status.get('chromadb_available'):
-                st.success("✅ ChromaDB 可用")
+            # Milvus status
+            if status.get('milvus_available'):
+                st.success("✅ Milvus 可用")
             else:
-                st.error("❌ ChromaDB 不可用")
+                st.error("❌ Milvus 不可用")
         else:
             st.error("无法获取系统状态")
         
+        st.divider()
+
+        st.header("📄 文档选择")
+        documents = get_uploaded_documents().get("documents", [])
+        
+        filenames = [doc['filename'] for doc in documents]
+        collections = [doc['collection_name'] for doc in documents]
+        if "selected_document" not in st.session_state:
+            st.session_state.selected_document = documents[0]
+        print('collections', collections)
+        if documents:
+            st.session_state.selected_document = st.selectbox(
+                "选择文档",
+                documents,
+                key="selected_file",
+                format_func=lambda x: x['filename'],
+                index=collections.index(st.session_state.selected_document['collection_name'])
+                if st.session_state.selected_document['collection_name'] in collections
+                else 0
+            )
+        else:
+            st.warning("没有上传过文档")
+        st.markdown(f"当前选择的文档: `{st.session_state.selected_document['filename']}`")
+
         st.divider()
         # Models
         st.header("🧠 模型选择")
@@ -252,7 +280,8 @@ def main():
         st.session_state.current_tab = "💬 智能问答"
     
     # Main content tabs
-    tab1, tab2, tab3 = st.tabs(["💬 智能问答", "📁 文档管理", "📈 系统监控"])
+    # tab1, tab2, tab3 = st.tabs(["💬 智能问答", "📁 文档管理", "📈 系统监控"])
+    tab1, tab2 = st.tabs(["💬 智能问答", "📁 文档管理"])
     
     with tab1:
         st.header("💬 智能问答")
@@ -411,89 +440,89 @@ def main():
         else:
             st.error(f"❌ 获取文档列表失败: {documents_result.get('error', '未知错误')}")
     
-    with tab3:
-        st.header("📈 系统监控")
+    # with tab3:
+    #     st.header("📈 系统监控")
         
-        # Refresh button
-        if st.button("🔄 刷新状态"):
-            st.rerun()
+    #     # Refresh button
+    #     if st.button("🔄 刷新状态"):
+    #         st.rerun()
         
-        # Get detailed status
-        try:
-            response = requests.get(f"{API_BASE_URL}/status/detailed", timeout=10)
-            if response.status_code == 200:
-                detailed_status = response.json()
+    #     # Get detailed status
+    #     try:
+    #         response = requests.get(f"{API_BASE_URL}/status/detailed", timeout=10)
+    #         if response.status_code == 200:
+    #             detailed_status = response.json()
                 
-                # System metrics
-                col1, col2, col3 = st.columns(3)
+    #             # System metrics
+    #             col1, col2, col3 = st.columns(3)
                 
-                with col1:
-                    st.metric(
-                        "CPU使用率", 
-                        f"{detailed_status.get('system_metrics', {}).get('cpu_percent', 0):.1f}%"
-                    )
+    #             with col1:
+    #                 st.metric(
+    #                     "CPU使用率", 
+    #                     f"{detailed_status.get('system_metrics', {}).get('cpu_percent', 0):.1f}%"
+    #                 )
                 
-                with col2:
-                    memory = detailed_status.get('system_metrics', {}).get('memory', {})
-                    st.metric(
-                        "内存使用率", 
-                        f"{memory.get('used_percent', 0):.1f}%",
-                        f"{memory.get('available_gb', 0):.1f}GB 可用"
-                    )
+    #             with col2:
+    #                 memory = detailed_status.get('system_metrics', {}).get('memory', {})
+    #                 st.metric(
+    #                     "内存使用率", 
+    #                     f"{memory.get('used_percent', 0):.1f}%",
+    #                     f"{memory.get('available_gb', 0):.1f}GB 可用"
+    #                 )
                 
-                with col3:
-                    disk = detailed_status.get('system_metrics', {}).get('disk', {})
-                    st.metric(
-                        "磁盘使用率", 
-                        f"{disk.get('used_percent', 0):.1f}%",
-                        f"{disk.get('free_gb', 0):.1f}GB 可用"
-                    )
+    #             with col3:
+    #                 disk = detailed_status.get('system_metrics', {}).get('disk', {})
+    #                 st.metric(
+    #                     "磁盘使用率", 
+    #                     f"{disk.get('used_percent', 0):.1f}%",
+    #                     f"{disk.get('free_gb', 0):.1f}GB 可用"
+    #                 )
                 
-                # Component status
-                st.subheader("组件状态")
+    #             # Component status
+    #             st.subheader("组件状态")
                 
-                col1, col2 = st.columns(2)
+    #             col1, col2 = st.columns(2)
                 
-                with col1:
-                    ollama_status = detailed_status.get('ollama', {})
-                    if ollama_status.get('status') == 'healthy':
-                        st.success(f"✅ Ollama ({ollama_status.get('model', 'unknown')})")
-                    else:
-                        st.error("❌ Ollama")
+    #             with col1:
+    #                 ollama_status = detailed_status.get('ollama', {})
+    #                 if ollama_status.get('status') == 'healthy':
+    #                     st.success(f"✅ Ollama ({ollama_status.get('model', 'unknown')})")
+    #                 else:
+    #                     st.error("❌ Ollama")
                 
-                with col2:
-                    vector_status = detailed_status.get('vector_store', {})
-                    if vector_status.get('status') == 'healthy':
-                        st.success(f"✅ ChromaDB ({vector_status.get('total_documents', 0)} 文档)")
-                    else:
-                        st.error("❌ ChromaDB")
+    #             with col2:
+    #                 vector_status = detailed_status.get('vector_store', {})
+    #                 if vector_status.get('status') == 'healthy':
+    #                     st.success(f"✅ ChromaDB ({vector_status.get('total_documents', 0)} 文档)")
+    #                 else:
+    #                     st.error("❌ ChromaDB")
                 
-                # File types chart
-                file_types = vector_status.get('file_types', {})
-                if file_types:
-                    st.subheader("文档类型分布")
-                    df = pd.DataFrame(list(file_types.items()), columns=['文件类型', '数量'])
-                    fig = px.pie(df, values='数量', names='文件类型', title="文档类型分布")
-                    st.plotly_chart(fig, use_container_width=True)
+    #             # File types chart
+    #             file_types = vector_status.get('file_types', {})
+    #             if file_types:
+    #                 st.subheader("文档类型分布")
+    #                 df = pd.DataFrame(list(file_types.items()), columns=['文件类型', '数量'])
+    #                 fig = px.pie(df, values='数量', names='文件类型', title="文档类型分布")
+    #                 st.plotly_chart(fig, use_container_width=True)
                 
-                # Configuration
-                st.subheader("系统配置")
-                config = detailed_status.get('configuration', {})
+    #             # Configuration
+    #             st.subheader("系统配置")
+    #             config = detailed_status.get('configuration', {})
                 
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.info(f"文档块大小: {config.get('chunk_size', 0)}")
-                    st.info(f"块重叠: {config.get('chunk_overlap', 0)}")
+    #             col1, col2 = st.columns(2)
+    #             with col1:
+    #                 st.info(f"文档块大小: {config.get('chunk_size', 0)}")
+    #                 st.info(f"块重叠: {config.get('chunk_overlap', 0)}")
                 
-                with col2:
-                    st.info(f"最大文件大小: {config.get('max_file_size_mb', 0)}MB")
-                    st.info(f"检索数量: {config.get('retrieval_top_k', 0)}")
+    #             with col2:
+    #                 st.info(f"最大文件大小: {config.get('max_file_size_mb', 0)}MB")
+    #                 st.info(f"检索数量: {config.get('retrieval_top_k', 0)}")
                 
-            else:
-                st.error("无法获取详细状态信息")
+    #         else:
+    #             st.error("无法获取详细状态信息")
                 
-        except Exception as e:
-            st.error(f"获取监控信息失败: {str(e)}")
+    #     except Exception as e:
+    #         st.error(f"获取监控信息失败: {str(e)}")
     
     # Chat input (must be outside of tabs/containers)
     if prompt := st.chat_input("请输入您的问题..."):

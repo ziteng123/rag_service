@@ -5,6 +5,7 @@ RAG chain implementation using LangChain and Ollama
 import time
 from typing import List, Dict, Any, Optional
 from langchain_community.chat_models import ChatOllama
+from langchain_community.embeddings import OllamaEmbeddings
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
@@ -21,6 +22,7 @@ class RAGChain:
     
     def __init__(self):
         self.llm = None
+        self.embeddings = None
         self.prompt_template = None
         self.chain = None
         self.milvus_client = None
@@ -36,6 +38,12 @@ class RAGChain:
                 model=settings.ollama_model,
                 temperature=settings.ollama_temperature,
                 streaming=True
+            )
+
+            # Initialize embeddings model
+            self.embeddings = OllamaEmbeddings(
+                base_url=settings.ollama_base_url,
+                model=settings.ollama_embedding_model,
             )
             
             # Define prompt template
@@ -64,7 +72,7 @@ class RAGChain:
             logger.error(f"Failed to initialize RAG chain: {str(e)}")
             raise e
     
-    def query(self, question: str, top_k: int = None, filter_metadata: Dict[str, Any] = None, model: str = None) -> Dict[str, Any]:
+    def query(self, question: str, collection_name: str = "milvus_test_collection", top_k: int = None, filter_metadata: Dict[str, Any] = None, model: str = None) -> Dict[str, Any]:
         """Process RAG query"""
         start_time = time.time()
         self.llm = ChatOllama(
@@ -79,16 +87,40 @@ class RAGChain:
                 top_k = settings.retrieval_top_k
             
             if settings.vector_db == 'milvus':
-                retrieved_docs = self.milvus_client.search(
+                query_vectrors = self.embeddings.embed_query(question)
+                search_results = self.milvus_client.search(
+                    collection_name=collection_name,
+                    vectors=[query_vectrors],
+                    limit=top_k
+                )
+                retrieved_docs = []
+                counts = len(search_results.ids) or len(search_results.documents) or len(search_results.metadatas) or len(search_results.distances)
+                for i in range(counts):
+                    if not search_results.documents or len(search_results.documents) <= i:
+                        continue
+                    num_items = len(search_results.documents[i])
+                    for j in range(num_items):
+                        try:
+                            metadata = search_results.metadatas[i][j]
+                            content = search_results.documents[i][j]
+                            similarity_score = search_results.distances[i][j]/1000
+                            rank = j + 1
+                            retrieved_docs.append({
+                                'content': content,
+                                'metadata': metadata,
+                                'similarity_score': similarity_score,
+                                'rank': rank
+                            })
+                        except Exception as e:
+                            logger.error(f"Error processing document {i}: {str(e)}")
+                            continue
+                logger.info(f"Retrieved {len(retrieved_docs)} results for query: {question[:50]}...")
+            else:
+                retrieved_docs = vector_store.search(
                     query=question,
                     top_k=top_k,
                     filter_metadata=filter_metadata
                 )
-            retrieved_docs = vector_store.search(
-                query=question,
-                top_k=top_k,
-                filter_metadata=filter_metadata
-            )
             
             if not retrieved_docs:
                 return {

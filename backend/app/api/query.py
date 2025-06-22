@@ -7,39 +7,11 @@ from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 import json
 
-from backend.app.models.schemas import QueryRequest, QueryResponse
+from backend.app.models.schemas import QueryRequest
 from backend.app.core.rag_chain import rag_chain
 from backend.app.utils.logger import logger
 
 router = APIRouter()
-
-@router.post("/query", response_model=QueryResponse)
-async def query_documents(request: QueryRequest):
-    """Query documents using RAG"""
-    try:
-        if not request.question.strip():
-            raise HTTPException(status_code=400, detail="Question cannot be empty")
-        
-        # Process RAG query
-        result = rag_chain.query(
-            question=request.question,
-            top_k=request.top_k,
-            filter_metadata=request.filter_metadata
-        )
-        
-        return QueryResponse(
-            question=result['question'],
-            answer=result['answer'],
-            sources=result['sources'],
-            processing_time=result['processing_time'],
-            retrieved_chunks=result['retrieved_chunks']
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error processing query: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/query/stream")
 async def query_documents_stream(request: QueryRequest):
@@ -55,6 +27,7 @@ async def query_documents_stream(request: QueryRequest):
                 # Process RAG query
                 result = rag_chain.query(
                     question=request.question,
+                    collection_name=request.collection_name,
                     top_k=request.top_k,
                     filter_metadata=request.filter_metadata,
                     model=request.model

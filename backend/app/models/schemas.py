@@ -53,11 +53,11 @@ class SystemStatus(BaseModel):
     """System status model"""
     status: str
     ollama_available: bool
-    chromadb_available: bool
+    milvus_available: bool
     total_documents: int
-    total_chunks: int
     disk_usage: Dict[str, Any]
     uptime: str
+    collections_info: List[Dict[str, Any]]
 
 class ErrorResponse(BaseModel):
     """Error response model"""

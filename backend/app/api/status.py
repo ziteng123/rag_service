@@ -9,6 +9,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.app.models.schemas import SystemStatus
 from backend.app.core.vectorizer import vector_store
+from backend.app.vector.dbs.milvus import milvus_client
 from backend.app.core.rag_chain import rag_chain
 from backend.app.utils.file_utils import get_disk_usage
 from backend.app.core.config import settings
@@ -27,13 +28,13 @@ async def get_system_status():
         ollama_health = rag_chain.health_check()
         ollama_available = ollama_health.get('healthy', False)
         
-        # Check ChromaDB availability
-        vector_health = vector_store.health_check()
-        chromadb_available = vector_health.get('healthy', False)
+        # Check Milvus availability
+        vector_health = milvus_client.health_check()
+        milvus_available = vector_health.get('healthy', False)
         
         # Get collection statistics
-        stats = vector_store.get_collection_stats()
-        
+        stats = milvus_client.get_collection_stats()
+        logger.info(f'collection info: {stats.get("collections_info", [])}')
         # Get disk usage
         disk_usage = get_disk_usage(settings.chroma_persist_directory)
         
@@ -42,16 +43,16 @@ async def get_system_status():
         uptime_str = str(timedelta(seconds=int(uptime_seconds)))
         
         # Overall system status
-        overall_status = "healthy" if (ollama_available and chromadb_available) else "degraded"
+        overall_status = "healthy" if (ollama_available and milvus_available) else "degraded"
         
         return SystemStatus(
             status=overall_status,
             ollama_available=ollama_available,
-            chromadb_available=chromadb_available,
-            total_documents=stats.get('unique_documents', 0),
-            total_chunks=stats.get('total_chunks', 0),
+            milvus_available=milvus_available,
+            total_documents=stats.get('total_docs', 0),
             disk_usage=disk_usage,
-            uptime=uptime_str
+            uptime=uptime_str,
+            collections_info=stats.get("collections_info", [])
         )
         
     except Exception as e:

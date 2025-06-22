@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from backend.app.models.schemas import UploadResponse, DeleteRequest, DeleteResponse
 from backend.app.core.document_parser import document_parser
 from backend.app.core.vectorizer import vector_store
+from backend.app.vector.dbs.milvus import milvus_client
 from backend.app.utils.file_utils import save_multiple_files, cleanup_temp_files, validate_file_type, validate_file_size
 from backend.app.utils.logger import logger
 from backend.app.core.config import settings
@@ -146,16 +147,18 @@ async def get_uploaded_documents():
     """Get list of uploaded documents"""
     try:
         # Get all documents from vector store
-        results = vector_store.collection.get(
-            include=['metadatas']
-        )
-        
+        result = milvus_client.get_collection_stats()
+        logger.info(f'Getting result: {result}')
         # Group by filename to get unique documents
         documents = {}
-        for metadata in results['metadatas']:
+        collections_info = result.get("collections_info")
+        for info in collections_info:
+            metadata = info.get('metadata')
+            collection_nanme = info.get('collection_name')
             filename = metadata.get('filename', 'unknown')
             if filename not in documents:
                 documents[filename] = {
+                    'collection_name': collection_nanme,
                     'filename': filename,
                     'file_type': metadata.get('file_type', 'unknown'),
                     'file_size': metadata.get('file_size', 0),
