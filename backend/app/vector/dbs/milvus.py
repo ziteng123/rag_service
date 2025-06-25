@@ -152,13 +152,45 @@ class MilvusClient(VectorDBBase):
         return self.client.has_collection(
             collection_name=f"{collection_name}"
         )
+    
+    def delete_all_collection(self):
+        # Delete all collections in the database.
+        try:
+            collections = self.client.list_collections()
+            for collection in collections:
+                self.client.drop_collection(
+                    collection_name=collection
+                    )
+            log.info("Successfully deleted all collections.")
+            return {
+                'success': True
+            }
+        except Exception as e:
+            log.error("Error deleting collections: %s", e)
+            return {
+                'success': False,
+                'error': str(e)
+            }
 
     def delete_collection(self, collection_name: str):
-        # Delete the collection based on the collection name.
-        collection_name = collection_name.replace("-", "_")
-        return self.client.drop_collection(
-            collection_name=f"{collection_name}"
-        )
+        try:
+            # Delete the collection based on the collection name.
+            collection_name = collection_name.replace("-", "_")
+            self.client.drop_collection(   
+                collection_name=f"{collection_name}"
+            )
+            log.info(f"Successfully deleted collection '{collection_name}'.")
+            return {
+                'success': True,
+                'deleted_count': 1
+            }
+        except Exception as e:
+            log.error(f"Error deleting collection '{collection_name}': {e}")
+            return {
+                'success': False,
+                'error': str(e),
+                'deleted_count': 0
+            }
 
     def search(
         self, collection_name: str, vectors: list[list[float | int]], limit: int
@@ -343,7 +375,7 @@ class MilvusClient(VectorDBBase):
                 }
                 for item in items
             ],
-        )
+        )        
 
     def delete(
         self,

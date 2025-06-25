@@ -423,7 +423,7 @@ def main():
                             delete_key = f"delete_{i}_{doc.get('filename', '')}"
                             if st.button("🗑️ 删除", key=delete_key, type="secondary"):
                                 with st.spinner(f"正在删除 {doc.get('filename', '')}..."):
-                                    result = delete_document(doc.get('filename', ''))
+                                    result = delete_document(doc.get('collection_name', ''))
                                     if result.get("status") == "success":
                                         st.success(f"✅ 已删除文档: {doc.get('filename', '')}")
                                         time.sleep(1)

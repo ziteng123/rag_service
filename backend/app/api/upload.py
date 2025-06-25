@@ -148,7 +148,6 @@ async def get_uploaded_documents():
     try:
         # Get all documents from vector store
         result = milvus_client.get_collection_stats()
-        logger.info(f'Getting result: {result}')
         # Group by filename to get unique documents
         documents = {}
         collections_info = result.get("collections_info")
@@ -191,8 +190,7 @@ async def delete_document(filename: str):
     """Delete a specific document by filename"""
     try:
         # Delete document from vector store
-        result = vector_store.delete_document(filename)
-        
+        result = milvus_client.delete_collection(filename)
         if result['success']:
             return DeleteResponse(
                 status="success",
@@ -218,13 +216,7 @@ async def delete_documents(request: DeleteRequest):
         if request.delete_all:
             # Delete all documents
             try:
-                vector_store.collection.delete()
-                # Recreate collection
-                vector_store.collection = vector_store.chroma_client.create_collection(
-                    name=vector_store.collection.name,
-                    metadata={"hnsw:space": "cosine"}
-                )
-                
+                milvus_client.delete_all_collection()
                 return DeleteResponse(
                     status="success",
                     message="Successfully deleted all documents",
